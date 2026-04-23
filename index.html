@@ -3,242 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Location & Time Weather</title>
+    <title>Weather Tracker Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        /* 地図のz-indexを下げてTailwindのUIと干渉させない */
         #map { z-index: 10; }
-        /* スクロールバーのカスタマイズ */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .active-day { border-color: #2563eb; background-color: #eff6ff; transform: translateY(-2px); }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-100 to-blue-50 min-h-screen p-4 md:p-8 flex justify-center">
 
-    <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-white/50 flex flex-col gap-5">
+        <div class="lg:col-span-1 bg-white/70 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-white/50 flex flex-col gap-5 h-fit">
             <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Weather Tracker</h1>
-            <p class="text-sm text-slate-500">場所と時間を指定して天気を取得します</p>
-
+            
             <div class="flex flex-col gap-2">
-                <label class="text-sm font-semibold text-slate-700">日時を指定</label>
+                <label class="text-sm font-semibold text-slate-700">開始日時を指定</label>
                 <input type="datetime-local" id="datetime-input" class="w-full p-3 rounded-xl border border-slate-200 bg-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
             </div>
 
             <div class="flex flex-col gap-2">
                 <label class="text-sm font-semibold text-slate-700">場所を指定</label>
                 <button id="btn-current-location" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl shadow-md transition font-medium text-sm flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     現在地を取得
                 </button>
                 <div class="grid grid-cols-2 gap-3 mt-2">
-                    <input type="number" id="lat-input" placeholder="緯度 (Lat)" step="0.0001" class="p-3 rounded-xl border border-slate-200 bg-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
-                    <input type="number" id="lon-input" placeholder="経度 (Lon)" step="0.0001" class="p-3 rounded-xl border border-slate-200 bg-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm">
+                    <input type="number" id="lat-input" placeholder="緯度" step="0.0001" class="p-3 rounded-xl border border-slate-200 bg-white/50 text-sm">
+                    <input type="number" id="lon-input" placeholder="経度" step="0.0001" class="p-3 rounded-xl border border-slate-200 bg-white/50 text-sm">
                 </div>
             </div>
 
-            <div id="map" class="w-full h-48 rounded-xl border border-slate-200 shadow-inner mt-2"></div>
+            <div id="map" class="w-full h-48 rounded-xl border border-slate-200 shadow-inner"></div>
 
-            <button id="btn-fetch" class="mt-auto w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-200 transition font-bold text-lg">
-                天気情報を取得
+            <button id="btn-fetch" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg transition font-bold text-lg">
+                14日間の予報を取得
             </button>
         </div>
 
-        <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-white/50 flex flex-col items-center justify-center relative min-h-[400px]">
+        <div class="lg:col-span-2 flex flex-col gap-6">
             
-            <div id="empty-state" class="text-center text-slate-400 flex flex-col items-center gap-3">
-                <svg class="w-16 h-16 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
-                <p>左側のパネルから<br>日時と場所を指定してください</p>
-            </div>
-
-            <div id="weather-result" class="w-full h-full flex flex-col hidden animate-fade-in">
-                <div class="text-center mb-6">
-                    <p id="res-time" class="text-sm font-semibold text-blue-500 mb-1">2026/04/23 15:00</p>
-                    <h2 id="res-desc" class="text-3xl font-bold text-slate-800 flex items-center justify-center gap-2">
-                        <span>☀️</span> 晴れ
-                    </h2>
+            <div class="bg-white/70 backdrop-blur-md rounded-3xl shadow-xl p-8 border border-white/50 relative min-h-[400px] flex flex-col items-center justify-center">
+                <div id="empty-state" class="text-center text-slate-400 flex flex-col items-center gap-3">
+                    <p>データを取得するとここに詳細が表示されます</p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-blue-50 p-4 rounded-2xl flex flex-col justify-center items-center">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">気温</p>
-                        <p class="text-2xl font-bold text-slate-700"><span id="res-temp">--</span><span class="text-sm text-slate-500 ml-1">°C</span></p>
-                        <p class="text-xs text-slate-500 mt-1">体感 <span id="res-app-temp">--</span>°C</p>
+                <div id="weather-result" class="w-full hidden">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                        <div class="text-center md:text-left">
+                            <p id="res-time" class="text-blue-600 font-bold mb-1"></p>
+                            <h2 id="res-desc" class="text-4xl font-black text-slate-800 flex items-center gap-3"></h2>
+                        </div>
+                        <div class="text-5xl font-light text-slate-700">
+                            <span id="res-temp">--</span><span class="text-2xl ml-1">°C</span>
+                        </div>
                     </div>
-                    <div class="bg-blue-50 p-4 rounded-2xl flex flex-col justify-center items-center">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">湿度</p>
-                        <p class="text-2xl font-bold text-slate-700"><span id="res-humidity">--</span><span class="text-sm text-slate-500 ml-1">%</span></p>
-                    </div>
-                    <div class="bg-blue-50 p-4 rounded-2xl flex flex-col justify-center items-center">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">風速</p>
-                        <p class="text-2xl font-bold text-slate-700"><span id="res-wind">--</span><span class="text-sm text-slate-500 ml-1">m/s</span></p>
-                    </div>
-                    <div class="bg-blue-50 p-4 rounded-2xl flex flex-col justify-center items-center">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">降水量</p>
-                        <p class="text-2xl font-bold text-slate-700"><span id="res-precip">--</span><span class="text-sm text-slate-500 ml-1">mm</span></p>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white/50 p-4 rounded-2xl border border-white">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-1">体感温度</p>
+                            <p class="text-xl font-bold text-slate-700"><span id="res-app-temp">--</span>°C</p>
+                        </div>
+                        <div class="bg-white/50 p-4 rounded-2xl border border-white">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-1">湿度</p>
+                            <p class="text-xl font-bold text-slate-700"><span id="res-humidity">--</span>%</p>
+                        </div>
+                        <div class="bg-white/50 p-4 rounded-2xl border border-white">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-1">風速</p>
+                            <p class="text-xl font-bold text-slate-700"><span id="res-wind">--</span>m/s</p>
+                        </div>
+                        <div class="bg-white/50 p-4 rounded-2xl border border-white">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-1">降水量</p>
+                            <p class="text-xl font-bold text-slate-700"><span id="res-precip">--</span>mm</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <div id="forecast-nav" class="bg-white/30 backdrop-blur-sm rounded-2xl p-2 overflow-x-auto no-scrollbar flex gap-3 hidden">
+                </div>
         </div>
     </div>
 
     <script>
-        // --- 初期設定とUI要素の取得 ---
         const latInput = document.getElementById('lat-input');
         const lonInput = document.getElementById('lon-input');
         const datetimeInput = document.getElementById('datetime-input');
-        
-        // WMO Weather interpretation codes
+        const forecastNav = document.getElementById('forecast-nav');
+        let weatherData = null; 
+        let selectedHour = 0; // ユーザーが最初に選んだ「時」を保持
+
         const weatherCodes = {
-            0: { desc: "快晴", icon: "☀️" },
-            1: { desc: "晴れ", icon: "🌤️" },
-            2: { desc: "一部曇り", icon: "⛅" },
-            3: { desc: "曇り", icon: "☁️" },
-            45: { desc: "霧", icon: "🌫️" },
-            48: { desc: "霧氷", icon: "🌫️" },
-            51: { desc: "霧雨 (弱)", icon: "🌧️" },
-            53: { desc: "霧雨 (中)", icon: "🌧️" },
-            55: { desc: "霧雨 (強)", icon: "🌧️" },
-            61: { desc: "雨 (弱)", icon: "☔" },
-            63: { desc: "雨 (中)", icon: "☔" },
-            65: { desc: "雨 (強)", icon: "☔" },
-            71: { desc: "雪 (弱)", icon: "❄️" },
-            73: { desc: "雪 (中)", icon: "❄️" },
-            75: { desc: "雪 (強)", icon: "❄️" },
-            95: { desc: "雷雨", icon: "⚡" },
-            96: { desc: "雷雨 (ひょう伴う)", icon: "⛈️" },
-            99: { desc: "激しい雷雨", icon: "⛈️" }
+            0: { desc: "快晴", icon: "☀️" }, 1: { desc: "晴れ", icon: "🌤️" }, 2: { desc: "一部曇り", icon: "⛅" }, 3: { desc: "曇り", icon: "☁️" },
+            45: { desc: "霧", icon: "🌫️" }, 61: { desc: "雨", icon: "☔" }, 71: { desc: "雪", icon: "❄️" }, 95: { desc: "雷雨", icon: "⚡" }
         };
 
-        // 日時入力の初期値を現在時刻に設定
         const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        datetimeInput.value = now.toISOString().slice(0, 16);
+        now.setMinutes(0); // 視認性のため分を切り捨て
+        const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        datetimeInput.value = localISO;
 
-        // --- Leaflet地図の初期化 ---
-        const defaultLat = 35.6895; // 東京
-        const defaultLon = 139.6917;
-        let map = L.map('map').setView([defaultLat, defaultLon], 10);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-        }).addTo(map);
+        // 地図初期化
+        let map = L.map('map').setView([35.6895, 139.6917], 10);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+        let marker = L.marker([35.6895, 139.6917]).addTo(map);
 
-        let marker = L.marker([defaultLat, defaultLon]).addTo(map);
-
-        // 地図クリックでピンを移動＆緯度経度を更新
-        map.on('click', function(e) {
-            updateLocation(e.latlng.lat, e.latlng.lng);
-        });
-
-        // 手動入力でピンと地図を更新
-        const syncMapFromInput = () => {
-            const lat = parseFloat(latInput.value);
-            const lon = parseFloat(lonInput.value);
-            if (!isNaN(lat) && !isNaN(lon)) {
-                marker.setLatLng([lat, lon]);
-                map.panTo([lat, lon]);
-            }
-        };
-        latInput.addEventListener('input', syncMapFromInput);
-        lonInput.addEventListener('input', syncMapFromInput);
-
-        // 現在地を取得
+        map.on('click', e => updateLocation(e.latlng.lat, e.latlng.lng));
         document.getElementById('btn-current-location').addEventListener('click', () => {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => updateLocation(pos.coords.latitude, pos.coords.longitude),
-                    (err) => alert("現在地を取得できませんでした。")
-                );
-            }
+            navigator.geolocation.getCurrentPosition(pos => updateLocation(pos.coords.latitude, pos.coords.longitude));
         });
 
         function updateLocation(lat, lon) {
-            const roundedLat = lat.toFixed(4);
-            const roundedLon = lon.toFixed(4);
-            latInput.value = roundedLat;
-            lonInput.value = roundedLon;
+            latInput.value = lat.toFixed(4);
+            lonInput.value = lon.toFixed(4);
             marker.setLatLng([lat, lon]);
-            map.flyTo([lat, lon], 12);
+            map.flyTo([lat, lon], 11);
         }
 
-        // --- Open-Meteo APIの呼び出し ---
         document.getElementById('btn-fetch').addEventListener('click', async () => {
             const lat = latInput.value;
             const lon = lonInput.value;
-            const dtValue = datetimeInput.value;
+            const startDt = new Date(datetimeInput.value);
+            selectedHour = startDt.getHours();
 
-            if (!lat || !lon || !dtValue) {
-                alert("場所と日時をすべて指定してください。");
-                return;
-            }
+            if (!lat || !lon) return alert("場所を指定してください");
 
-            const targetDate = new Date(dtValue);
-            // YYYY-MM-DD形式
-            const dateString = targetDate.toISOString().split('T')[0];
-            
-            // Open-Meteoから該当日周辺のデータを取得
-            // 過去・未来両方に対応できるよう past_days と forecast_days を長めに設定
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&start_date=${dateString}&end_date=${dateString}&timezone=auto`;
+            // 開始日から13日後（計14日間）を計算
+            const endDt = new Date(startDt);
+            endDt.setDate(startDt.getDate() + 13);
+
+            const fmt = d => d.toISOString().split('T')[0];
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&start_date=${fmt(startDt)}&end_date=${fmt(endDt)}&timezone=auto`;
 
             try {
-                document.getElementById('btn-fetch').textContent = "取得中...";
                 const res = await fetch(url);
-                if (!res.ok) throw new Error("APIエラーが発生しました");
-                const data = await res.json();
-                
-                displayData(data, targetDate);
-                
-            } catch (error) {
-                alert(error.message);
-            } finally {
-                document.getElementById('btn-fetch').textContent = "天気情報を取得";
-            }
+                weatherData = await res.json();
+                renderForecastNav(startDt);
+                updateDisplay(0); // 初日を表示
+            } catch (e) { alert("取得失敗"); }
         });
 
-        function displayData(data, targetDate) {
-            // 入力された時刻に最も近い「時(hour)」を探す
-            const targetTimeMs = targetDate.getTime();
-            let closestIndex = 0;
-            let minDiff = Infinity;
+        function renderForecastNav(startDt) {
+            forecastNav.innerHTML = '';
+            forecastNav.classList.remove('hidden');
+            
+            for (let i = 0; i < 14; i++) {
+                const date = new Date(startDt);
+                date.setDate(startDt.getDate() + i);
+                
+                // その日の指定時刻のインデックス
+                const dataIdx = (i * 24) + selectedHour;
+                const code = weatherData.hourly.weather_code[dataIdx];
+                const weather = weatherCodes[code] || { icon: "☁️" };
 
-            data.hourly.time.forEach((timeStr, index) => {
-                const diff = Math.abs(new Date(timeStr).getTime() - targetTimeMs);
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closestIndex = index;
-                }
-            });
+                const card = document.createElement('div');
+                card.className = `flex-shrink-0 w-20 p-3 rounded-xl border border-transparent bg-white/50 cursor-pointer transition all duration-200 flex flex-col items-center gap-1 hover:bg-white`;
+                card.onclick = () => {
+                    document.querySelectorAll('#forecast-nav div').forEach(el => el.classList.remove('active-day'));
+                    card.classList.add('active-day');
+                    updateDisplay(i);
+                };
+                if(i === 0) card.classList.add('active-day');
 
-            // UIへの反映
+                card.innerHTML = `
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">${date.toLocaleDateString('ja-JP', {weekday:'short'})}</span>
+                    <span class="text-sm font-bold text-slate-700">${date.getDate()}日</span>
+                    <span class="text-xl">${weather.icon}</span>
+                    <span class="text-xs font-bold text-blue-500">${weatherData.hourly.temperature_2m[dataIdx].toFixed(0)}°</span>
+                `;
+                forecastNav.appendChild(card);
+            }
+        }
+
+        function updateDisplay(dayOffset) {
+            const idx = (dayOffset * 24) + selectedHour;
+            const d = weatherData.hourly;
+
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('weather-result').classList.remove('hidden');
 
-            // データ抽出
-            const temp = data.hourly.temperature_2m[closestIndex];
-            const appTemp = data.hourly.apparent_temperature[closestIndex];
-            const humidity = data.hourly.relative_humidity_2m[closestIndex];
-            const wind = data.hourly.wind_speed_10m[closestIndex];
-            const precip = data.hourly.precipitation[closestIndex];
-            const code = data.hourly.weather_code[closestIndex];
-
-            // 画面描画
-            document.getElementById('res-time').textContent = new Date(data.hourly.time[closestIndex]).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const dateLabel = new Date(d.time[idx]).toLocaleString('ja-JP', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            document.getElementById('res-time').textContent = dateLabel;
             
-            const weather = weatherCodes[code] || { desc: "不明", icon: "❓" };
+            const weather = weatherCodes[d.weather_code[idx]] || { desc: "不明", icon: "❓" };
             document.getElementById('res-desc').innerHTML = `<span>${weather.icon}</span> ${weather.desc}`;
             
-            document.getElementById('res-temp').textContent = temp.toFixed(1);
-            document.getElementById('res-app-temp').textContent = appTemp.toFixed(1);
-            document.getElementById('res-humidity').textContent = humidity;
-            document.getElementById('res-wind').textContent = wind.toFixed(1);
-            document.getElementById('res-precip').textContent = precip.toFixed(1);
+            document.getElementById('res-temp').textContent = d.temperature_2m[idx].toFixed(1);
+            document.getElementById('res-app-temp').textContent = d.apparent_temperature[idx].toFixed(1);
+            document.getElementById('res-humidity').textContent = d.relative_humidity_2m[idx];
+            document.getElementById('res-wind').textContent = d.wind_speed_10m[idx].toFixed(1);
+            document.getElementById('res-precip').textContent = d.precipitation[idx].toFixed(1);
         }
     </script>
 </body>
