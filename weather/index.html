@@ -17,23 +17,29 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .active-card { border-color: #3b82f6 !important; background: white !important; transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
         
-        /* チャートスライダーの設定 */
+        .charts-outer { width: 100%; overflow: hidden; }
         .charts-slider {
             display: flex;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             gap: 1rem;
             padding: 0.5rem 0.25rem;
+            scroll-behavior: smooth;
         }
         .chart-box {
-            flex: 0 0 92%;
+            flex: 0 0 calc(100% - 1rem);
             scroll-snap-align: center;
+            min-height: 220px;
+            overflow: hidden;
+            display: block;
         }
         @media (min-width: 1024px) {
             .chart-box { flex: 1; }
         }
 
-        /* 背景グラデーション */
+        .graph-hidden { height: 0; opacity: 0; pointer-events: none; overflow: hidden; }
+        .graph-visible { height: auto; opacity: 1; pointer-events: auto; margin-top: 1rem; }
+
         .bg-clear { background: linear-gradient(135deg, #7dd3fc, #38bdf8); }
         .bg-cloudy { background: linear-gradient(135deg, #cbd5e1, #94a3b8); }
         .bg-rain { background: linear-gradient(135deg, #64748b, #475569); }
@@ -96,18 +102,20 @@
                 </div>
             </div>
 
-            <div class="charts-slider no-scrollbar hidden" id="graph-container">
-                <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
-                    <p class="text-[10px] font-black text-rose-500 mb-2 tracking-widest uppercase">気温 (°C)</p>
-                    <div class="h-[150px]"><canvas id="tempChart"></canvas></div>
-                </div>
-                <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
-                    <p class="text-[10px] font-black text-blue-500 mb-2 tracking-widest uppercase">降水量 (mm)</p>
-                    <div class="h-[150px]"><canvas id="precipChart"></canvas></div>
-                </div>
-                <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
-                    <p class="text-[10px] font-black text-slate-500 mb-2 tracking-widest uppercase">風速 (m/s)</p>
-                    <div class="h-[150px]"><canvas id="windChart"></canvas></div>
+            <div class="charts-outer">
+                <div class="charts-slider no-scrollbar graph-hidden" id="graph-container">
+                    <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
+                        <p class="text-[10px] font-black text-rose-500 mb-2 tracking-widest uppercase">気温 (°C)</p>
+                        <div class="h-[150px] w-full"><canvas id="tempChart"></canvas></div>
+                    </div>
+                    <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
+                        <p class="text-[10px] font-black text-blue-500 mb-2 tracking-widest uppercase">降水量 (mm)</p>
+                        <div class="h-[150px] w-full"><canvas id="precipChart"></canvas></div>
+                    </div>
+                    <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
+                        <p class="text-[10px] font-black text-slate-500 mb-2 tracking-widest uppercase">風速 (m/s)</p>
+                        <div class="h-[150px] w-full"><canvas id="windChart"></canvas></div>
+                    </div>
                 </div>
             </div>
 
@@ -192,7 +200,9 @@
             try {
                 const res = await fetch(url); weatherData = await res.json();
                 renderNav(dt); updateUI(0);
-                document.getElementById('graph-container').classList.remove('hidden');
+                const gc = document.getElementById('graph-container');
+                gc.classList.remove('graph-hidden');
+                gc.classList.add('graph-visible');
             } catch (e) { alert("データ取得に失敗しました"); }
         };
 
@@ -222,7 +232,7 @@
             document.body.className = `min-h-screen transition-colors duration-1000 p-4 ${meta.bg}`;
             
             const dateObj = new Date(h.time[idx]);
-            document.getElementById('display-date').textContent = `${dateObj.getMonth()+1}月${dateObj.getDate()}日 ${dateObj.getHours()}:00 時点の予測`;
+            document.getElementById('display-date').textContent = `${dateObj.getMonth()+1}月${dateObj.getDate()}日 ${dateObj.getHours()}:00 の予測`;
             document.getElementById('display-icon').textContent = meta.icon;
             document.getElementById('display-desc').textContent = meta.desc;
             document.getElementById('display-temp').textContent = h.temperature_2m[idx].toFixed(1);
@@ -254,7 +264,7 @@
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    animation: false, // 勝手なスクロール防止
+                    animation: false,
                     plugins: { legend: { display: false } },
                     scales: { 
                         y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 8 } } }, 
