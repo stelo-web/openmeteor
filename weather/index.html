@@ -10,12 +10,30 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', 'Inter', sans-serif; transition: background 1s ease; }
+        body { font-family: 'Noto Sans JP', 'Inter', sans-serif; transition: background 1s ease; overflow-x: hidden; }
         .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); }
         #map { height: 180px; border-radius: 1.5rem; z-index: 1; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .active-card { border-color: #3b82f6 !important; background: white !important; transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
+        
+        /* チャートスライダーの設定 */
+        .charts-slider {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            gap: 1rem;
+            padding: 0.5rem 0.25rem;
+        }
+        .chart-box {
+            flex: 0 0 92%;
+            scroll-snap-align: center;
+        }
+        @media (min-width: 1024px) {
+            .chart-box { flex: 1; }
+        }
+
+        /* 背景グラデーション */
         .bg-clear { background: linear-gradient(135deg, #7dd3fc, #38bdf8); }
         .bg-cloudy { background: linear-gradient(135deg, #cbd5e1, #94a3b8); }
         .bg-rain { background: linear-gradient(135deg, #64748b, #475569); }
@@ -49,50 +67,47 @@
 
                 <div id="map"></div>
                 
-                <button id="btn-save-loc" class="w-full py-2 border-2 border-slate-800/10 text-slate-600 rounded-xl font-black text-[10px] hover:bg-white/40 transition">現在の場所を保存</button>
+                <button id="btn-save-loc" class="w-full py-2 border-2 border-slate-800/10 text-slate-600 rounded-xl font-black text-[10px] hover:bg-white/40 transition">場所を保存</button>
                 <div id="saved-locations" class="flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
 
-                <button id="btn-fetch" class="w-full py-4 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition">予報を生成する</button>
+                <button id="btn-fetch" class="w-full py-4 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition">予報を生成</button>
             </div>
         </section>
 
         <main class="lg:col-span-2 flex flex-col gap-4 order-1 lg:order-2">
-            <div id="main-card" class="glass rounded-[3rem] p-8 shadow-2xl flex flex-col items-center text-center relative min-h-[350px] justify-center">
-                <div id="empty-msg" class="text-slate-400 font-bold">
-                    場所を選択して予報を生成してください
-                </div>
+            <div id="main-card" class="glass rounded-[3rem] p-8 shadow-2xl flex flex-col items-center text-center relative min-h-[320px] justify-center">
+                <div id="empty-msg" class="text-slate-400 font-bold">場所を選択して予報を生成してください</div>
                 <div id="data-content" class="hidden w-full">
                     <p id="display-date" class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4"></p>
                     <div id="display-icon" class="text-7xl mb-4"></div>
                     <h2 id="display-desc" class="text-3xl font-black text-slate-800 mb-2"></h2>
                     <div class="flex justify-center items-baseline gap-1 mb-6">
-                        <span id="display-temp" class="text-6xl font-light text-slate-800"></span>
-                        <span class="text-2xl text-slate-400">°C</span>
+                        <span id="display-temp" class="text-6xl font-light"></span><span class="text-2xl text-slate-400">°C</span>
                     </div>
                     <div class="bg-white/40 p-4 rounded-2xl mb-8">
                         <p id="display-advice" class="text-xs font-bold text-slate-700"></p>
                     </div>
                     <div class="grid grid-cols-4 gap-2">
-                        <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">体感温度</span><span id="val-app" class="text-sm font-bold"></span></div>
+                        <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">体感</span><span id="val-app" class="text-sm font-bold"></span></div>
                         <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">湿度</span><span id="val-hum" class="text-sm font-bold"></span></div>
                         <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">風速</span><span id="val-wind" class="text-sm font-bold"></span></div>
-                        <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">降水量</span><span id="val-pre" class="text-sm font-bold"></span></div>
+                        <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">降水</span><span id="val-pre" class="text-sm font-bold"></span></div>
                     </div>
                 </div>
             </div>
 
-            <div class="flex flex-col gap-4 hidden" id="graph-container">
-                <div class="glass rounded-[2rem] p-5 shadow-xl">
-                    <p class="text-[10px] font-black text-slate-400 mb-2 uppercase">気温推移 (°C)</p>
-                    <canvas id="tempChart" height="120"></canvas>
+            <div class="charts-slider no-scrollbar hidden" id="graph-container">
+                <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
+                    <p class="text-[10px] font-black text-rose-500 mb-2 tracking-widest uppercase">気温 (°C)</p>
+                    <div class="h-[150px]"><canvas id="tempChart"></canvas></div>
                 </div>
-                <div class="glass rounded-[2rem] p-5 shadow-xl border-blue-100">
-                    <p class="text-[10px] font-black text-blue-400 mb-2 uppercase">降水量予測 (mm)</p>
-                    <canvas id="precipChart" height="120"></canvas>
+                <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
+                    <p class="text-[10px] font-black text-blue-500 mb-2 tracking-widest uppercase">降水量 (mm)</p>
+                    <div class="h-[150px]"><canvas id="precipChart"></canvas></div>
                 </div>
-                <div class="glass rounded-[2rem] p-5 shadow-xl border-slate-100">
-                    <p class="text-[10px] font-black text-slate-500 mb-2 uppercase">風速推移 (m/s)</p>
-                    <canvas id="windChart" height="120"></canvas>
+                <div class="chart-box glass rounded-[2rem] p-5 shadow-xl">
+                    <p class="text-[10px] font-black text-slate-500 mb-2 tracking-widest uppercase">風速 (m/s)</p>
+                    <div class="h-[150px]"><canvas id="windChart"></canvas></div>
                 </div>
             </div>
 
@@ -148,7 +163,7 @@
         };
 
         document.getElementById('btn-save-loc').onclick = () => {
-            const name = prompt("保存する名前を入力", "お気に入り");
+            const name = prompt("保存する名前を入力", "マイプレイス");
             if (!name || !latInput.value) return;
             const locs = JSON.parse(localStorage.getItem('skycast_locs') || '[]');
             locs.push({ name, lat: latInput.value, lon: lonInput.value });
@@ -231,16 +246,20 @@
             if (chartP) chartP.destroy();
             if (chartW) chartW.destroy();
 
-            const createConfig = (data, color, fill = true) => ({
+            const createConfig = (data, color) => ({
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [{ data: data, borderColor: color, backgroundColor: color + '22', fill: fill, tension: 0.4, pointRadius: 0 }]
+                    datasets: [{ data: data, borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.4, pointRadius: 2, pointBackgroundColor: color }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
+                    animation: false, // 勝手なスクロール防止
                     plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: false, grid: { display: false }, ticks: { font: { size: 8 } } }, x: { grid: { display: false }, ticks: { font: { size: 8, weight: 'bold' } } } }
+                    scales: { 
+                        y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 8 } } }, 
+                        x: { grid: { display: false }, ticks: { font: { size: 8, weight: 'bold' } } } 
+                    }
                 }
             });
 
