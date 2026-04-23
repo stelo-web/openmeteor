@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SkyCast Pro | Weather</title>
+    <title>SkyCast Pro | 天気予報</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; transition: background 1s ease; }
+        body { font-family: 'Noto Sans JP', 'Inter', sans-serif; transition: background 1s ease; }
         .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); }
-        #map { height: 200px; border-radius: 1.5rem; z-index: 1; }
+        #map { height: 180px; border-radius: 1.5rem; z-index: 1; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .active-card { border-color: #3b82f6; background: white; transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
-        /* 背景グラデーション */
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .active-card { border-color: #3b82f6 !important; background: white !important; transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
         .bg-clear { background: linear-gradient(135deg, #7dd3fc, #38bdf8); }
         .bg-cloudy { background: linear-gradient(135deg, #cbd5e1, #94a3b8); }
         .bg-rain { background: linear-gradient(135deg, #64748b, #475569); }
@@ -25,89 +25,107 @@
 <body class="bg-clear min-h-screen pb-10 p-4">
 
     <nav class="max-w-md mx-auto mb-4 flex items-center justify-between lg:max-w-5xl">
-        <a href="/" class="glass px-5 py-2 rounded-full text-sm font-black text-slate-700 flex items-center gap-2 hover:bg-white transition">
+        <a href="/stelo-web/openmeteor" class="glass px-5 py-2 rounded-full text-sm font-black text-slate-700 flex items-center gap-2 hover:bg-white transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            HUB
+            拠点に戻る
         </a>
-        <div class="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">Utility Hub / Weather</div>
+        <div class="text-[9px] font-black text-white/70 uppercase tracking-[0.2em]">Stelo / 天気予報</div>
     </nav>
 
     <div class="max-w-md mx-auto flex flex-col gap-4 lg:max-w-5xl lg:grid lg:grid-cols-3">
         
-        <section class="glass rounded-[2rem] p-6 shadow-xl flex flex-col gap-5">
+        <section class="glass rounded-[2rem] p-6 shadow-xl flex flex-col gap-4 order-2 lg:order-1">
             <div class="space-y-4">
                 <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date & Time</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center block">日時指定</label>
                     <input type="datetime-local" id="datetime-input" class="w-full mt-1 p-4 rounded-2xl bg-white/50 border-none outline-none font-bold text-slate-700">
                 </div>
                 
                 <div class="grid grid-cols-2 gap-2">
-                    <button id="btn-current" class="col-span-2 py-3 bg-slate-800 text-white rounded-2xl font-black text-sm shadow-lg">現在地を取得</button>
-                    <input type="number" id="lat-input" placeholder="Lat" class="p-4 rounded-2xl bg-white/50 text-sm font-bold">
-                    <input type="number" id="lon-input" placeholder="Lon" class="p-4 rounded-2xl bg-white/50 text-sm font-bold">
+                    <button id="btn-current" class="col-span-2 py-3 bg-slate-800 text-white rounded-2xl font-black text-xs shadow-lg">現在地を取得</button>
+                    <input type="number" id="lat-input" placeholder="緯度" class="p-4 rounded-2xl bg-white/50 text-xs font-bold">
+                    <input type="number" id="lon-input" placeholder="経度" class="p-4 rounded-2xl bg-white/50 text-xs font-bold">
                 </div>
 
                 <div id="map"></div>
+                
+                <button id="btn-save-loc" class="w-full py-2 border-2 border-slate-800/10 text-slate-600 rounded-xl font-black text-[10px] hover:bg-white/40 transition">現在の場所を保存</button>
+                <div id="saved-locations" class="flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
 
-                <div id="saved-locations" class="flex gap-2 overflow-x-auto no-scrollbar"></div>
-
-                <button id="btn-fetch" class="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition">生成する</button>
+                <button id="btn-fetch" class="w-full py-4 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition">予報を生成する</button>
             </div>
         </section>
 
-        <main class="lg:col-span-2 flex flex-col gap-4">
-            <div id="main-card" class="glass rounded-[3rem] p-10 shadow-2xl flex flex-col items-center text-center relative min-h-[350px] justify-center">
+        <main class="lg:col-span-2 flex flex-col gap-4 order-1 lg:order-2">
+            <div id="main-card" class="glass rounded-[3rem] p-8 shadow-2xl flex flex-col items-center text-center relative min-h-[350px] justify-center">
                 <div id="empty-msg" class="text-slate-400 font-bold">
-                    場所と時間を選択して<br>予報をロードしてください
+                    場所を選択して予報を生成してください
                 </div>
                 <div id="data-content" class="hidden w-full">
-                    <p id="display-date" class="text-xs font-black text-blue-600 uppercase tracking-widest mb-4"></p>
-                    <div id="display-icon" class="text-8xl mb-4"></div>
-                    <h2 id="display-desc" class="text-4xl font-black text-slate-800 mb-2"></h2>
+                    <p id="display-date" class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4"></p>
+                    <div id="display-icon" class="text-7xl mb-4"></div>
+                    <h2 id="display-desc" class="text-3xl font-black text-slate-800 mb-2"></h2>
                     <div class="flex justify-center items-baseline gap-1 mb-6">
-                        <span id="display-temp" class="text-7xl font-light text-slate-800"></span>
-                        <span class="text-3xl text-slate-400">°C</span>
+                        <span id="display-temp" class="text-6xl font-light text-slate-800"></span>
+                        <span class="text-2xl text-slate-400">°C</span>
                     </div>
                     <div class="bg-white/40 p-4 rounded-2xl mb-8">
-                        <p id="display-advice" class="text-sm font-bold text-slate-700"></p>
+                        <p id="display-advice" class="text-xs font-bold text-slate-700"></p>
                     </div>
-                    <div class="grid grid-cols-4 gap-4">
-                        <div class="flex flex-col"><span class="text-[9px] font-black text-slate-400 uppercase">Feels</span><span id="val-app" class="font-bold"></span></div>
-                        <div class="flex flex-col"><span class="text-[9px] font-black text-slate-400 uppercase">Humid</span><span id="val-hum" class="font-bold"></span></div>
-                        <div class="flex flex-col"><span class="text-[9px] font-black text-slate-400 uppercase">Wind</span><span id="val-wind" class="font-bold"></span></div>
-                        <div class="flex flex-col"><span class="text-[9px] font-black text-slate-400 uppercase">Rain</span><span id="val-pre" class="font-bold"></span></div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">体感温度</span><span id="val-app" class="text-sm font-bold"></span></div>
+                        <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">湿度</span><span id="val-hum" class="text-sm font-bold"></span></div>
+                        <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">風速</span><span id="val-wind" class="text-sm font-bold"></span></div>
+                        <div class="flex flex-col"><span class="text-[8px] font-black text-slate-400 uppercase">降水量</span><span id="val-pre" class="text-sm font-bold"></span></div>
                     </div>
                 </div>
             </div>
 
-            <div class="glass rounded-[2rem] p-6 shadow-xl hidden" id="graph-container">
-                <canvas id="tempChart" height="120"></canvas>
+            <div class="flex flex-col gap-4 hidden" id="graph-container">
+                <div class="glass rounded-[2rem] p-5 shadow-xl">
+                    <p class="text-[10px] font-black text-slate-400 mb-2 uppercase">気温推移 (°C)</p>
+                    <canvas id="tempChart" height="120"></canvas>
+                </div>
+                <div class="glass rounded-[2rem] p-5 shadow-xl border-blue-100">
+                    <p class="text-[10px] font-black text-blue-400 mb-2 uppercase">降水量予測 (mm)</p>
+                    <canvas id="precipChart" height="120"></canvas>
+                </div>
+                <div class="glass rounded-[2rem] p-5 shadow-xl border-slate-100">
+                    <p class="text-[10px] font-black text-slate-500 mb-2 uppercase">風速推移 (m/s)</p>
+                    <canvas id="windChart" height="120"></canvas>
+                </div>
             </div>
 
-            <div id="forecast-nav" class="flex gap-3 overflow-x-auto no-scrollbar pb-4 px-1"></div>
+            <div class="w-full overflow-x-auto no-scrollbar">
+                <div id="forecast-nav" class="flex gap-3 pb-4 min-w-max px-1"></div>
+            </div>
         </main>
     </div>
 
     <script>
-        /* ... 前回の全機能ロジックをここに貼り付け ... */
-        /* (便宜上、動作に必要な主要部分のみ以下に再掲) */
-        let weatherData = null; let selectedHour = 0; let chart = null;
+        let weatherData = null; let selectedHour = 0;
+        let chartT = null, chartP = null, chartW = null;
+
         const weatherMeta = {
-            0: { desc: "快晴", icon: "☀️", bg: "bg-clear", advice: "日差しが強いので帽子を忘れずに！" },
-            1: { desc: "晴れ", icon: "🌤️", bg: "bg-clear", advice: "過ごしやすい天気になりそうです。" },
-            2: { desc: "一部曇り", icon: "⛅", bg: "bg-cloudy", advice: "外での活動にちょうど良いです。" },
-            3: { desc: "曇り", icon: "☁️", bg: "bg-cloudy", advice: "どんよりしていますが雨の心配は低め。" },
-            61: { desc: "雨", icon: "☔", bg: "bg-rain", advice: "傘を忘れずに。足元に注意してください。" },
-            71: { desc: "雪", icon: "❄️", bg: "bg-snow", advice: "非常に寒いです。防寒対策を徹底しましょう。" },
-            95: { desc: "雷雨", icon: "⚡", bg: "bg-rain", advice: "急な天候の変化に注意してください。" }
+            0: { desc: "快晴", icon: "☀️", bg: "bg-clear", advice: "最高の天気です！お出かけ日和ですね。" },
+            1: { desc: "晴れ", icon: "🌤️", bg: "bg-clear", advice: "穏やかな晴天になりそうです。" },
+            2: { desc: "一部曇り", icon: "⛅", bg: "bg-cloudy", advice: "外での活動にはちょうど良い天気です。" },
+            3: { desc: "曇り", icon: "☁️", bg: "bg-cloudy", advice: "傘は不要そうですが、少し肌寒いかも。" },
+            61: { desc: "雨", icon: "☔", bg: "bg-rain", advice: "雨が降ります。傘を忘れずに持ちましょう。" },
+            71: { desc: "雪", icon: "❄️", bg: "bg-snow", advice: "雪が降る予報です。防寒と足元に注意！" },
+            95: { desc: "雷雨", icon: "⚡", bg: "bg-rain", advice: "天候の急変に注意してください。" }
         };
-        const latInput = document.getElementById('lat-input'); const lonInput = document.getElementById('lon-input');
-        const datetimeInput = document.getElementById('datetime-input'); const forecastNav = document.getElementById('forecast-nav');
+
+        const latInput = document.getElementById('lat-input');
+        const lonInput = document.getElementById('lon-input');
+        const datetimeInput = document.getElementById('datetime-input');
+        const forecastNav = document.getElementById('forecast-nav');
 
         window.onload = () => {
             const now = new Date();
             datetimeInput.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
             initMap();
+            loadSavedLocations();
         };
 
         let map, marker;
@@ -119,18 +137,37 @@
         }
 
         function updatePos(lat, lon) {
-            latInput.value = lat.toFixed(4); lonInput.value = lon.toFixed(4);
-            marker.setLatLng([lat, lon]); map.flyTo([lat, lon], 12);
+            latInput.value = Number(lat).toFixed(4);
+            lonInput.value = Number(lon).toFixed(4);
+            marker.setLatLng([lat, lon]);
+            map.flyTo([lat, lon], 12);
         }
 
         document.getElementById('btn-current').onclick = () => {
             navigator.geolocation.getCurrentPosition(p => updatePos(p.coords.latitude, p.coords.longitude));
         };
 
+        document.getElementById('btn-save-loc').onclick = () => {
+            const name = prompt("保存する名前を入力", "お気に入り");
+            if (!name || !latInput.value) return;
+            const locs = JSON.parse(localStorage.getItem('skycast_locs') || '[]');
+            locs.push({ name, lat: latInput.value, lon: lonInput.value });
+            localStorage.setItem('skycast_locs', JSON.stringify(locs));
+            loadSavedLocations();
+        };
+
+        function loadSavedLocations() {
+            const container = document.getElementById('saved-locations');
+            const locs = JSON.parse(localStorage.getItem('skycast_locs') || '[]');
+            container.innerHTML = locs.map(l => `
+                <button onclick="updatePos(${l.lat}, ${l.lon})" class="flex-shrink-0 px-3 py-1.5 bg-white/40 rounded-full text-[9px] font-black border border-white/20 transition hover:bg-white">${l.name}</button>
+            `).join('');
+        }
+
         document.getElementById('btn-fetch').onclick = async () => {
             const lat = latInput.value; const lon = lonInput.value;
             const dt = new Date(datetimeInput.value); selectedHour = dt.getHours();
-            if (!lat || !lon) return alert("場所を選んでください");
+            if (!lat || !lon) return alert("場所を選択してください");
 
             const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             const endDt = new Date(dt); endDt.setDate(dt.getDate() + 13);
@@ -141,7 +178,7 @@
                 const res = await fetch(url); weatherData = await res.json();
                 renderNav(dt); updateUI(0);
                 document.getElementById('graph-container').classList.remove('hidden');
-            } catch (e) { alert("取得に失敗しました"); }
+            } catch (e) { alert("データ取得に失敗しました"); }
         };
 
         function renderNav(startDt) {
@@ -151,8 +188,8 @@
                 const idx = (i * 24) + selectedHour;
                 const meta = weatherMeta[weatherData.hourly.weather_code[idx]] || weatherMeta[2];
                 const card = document.createElement('div');
-                card.className = `flex-shrink-0 w-24 p-5 rounded-[1.5rem] glass cursor-pointer transition-all flex flex-col items-center gap-1`;
-                card.innerHTML = `<span class="text-[10px] font-black text-slate-400 uppercase">${d.getDate()} (${d.toLocaleDateString('ja-JP',{weekday:'short'})})</span><span class="text-3xl">${meta.icon}</span><span class="text-sm font-black text-slate-800">${weatherData.hourly.temperature_2m[idx].toFixed(0)}°</span>`;
+                card.className = `flex-shrink-0 w-20 p-4 rounded-[1.5rem] glass cursor-pointer transition-all flex flex-col items-center gap-1 border-2 border-transparent`;
+                card.innerHTML = `<span class="text-[9px] font-black text-slate-400">${d.getDate()}日(${d.toLocaleDateString('ja-JP',{weekday:'short'})})</span><span class="text-2xl">${meta.icon}</span><span class="text-xs font-black text-slate-800">${weatherData.hourly.temperature_2m[idx].toFixed(0)}°</span>`;
                 card.onclick = () => {
                     document.querySelectorAll('#forecast-nav div').forEach(el => el.classList.remove('active-card'));
                     card.classList.add('active-card'); updateUI(i);
@@ -168,8 +205,9 @@
             document.getElementById('empty-msg').classList.add('hidden');
             document.getElementById('data-content').classList.remove('hidden');
             document.body.className = `min-h-screen transition-colors duration-1000 p-4 ${meta.bg}`;
+            
             const dateObj = new Date(h.time[idx]);
-            document.getElementById('display-date').textContent = `${dateObj.getMonth()+1}月${dateObj.getDate()}日 ${dateObj.getHours()}:00の予報`;
+            document.getElementById('display-date').textContent = `${dateObj.getMonth()+1}月${dateObj.getDate()}日 ${dateObj.getHours()}:00 時点の予測`;
             document.getElementById('display-icon').textContent = meta.icon;
             document.getElementById('display-desc').textContent = meta.desc;
             document.getElementById('display-temp').textContent = h.temperature_2m[idx].toFixed(1);
@@ -178,30 +216,37 @@
             document.getElementById('val-hum').textContent = h.relative_humidity_2m[idx] + "%";
             document.getElementById('val-wind').textContent = h.wind_speed_10m[idx].toFixed(1) + "m";
             document.getElementById('val-pre').textContent = h.precipitation[idx].toFixed(1) + "mm";
-            updateChart(dayOffset);
+            
+            updateCharts(dayOffset);
         }
 
-        function updateChart(dayOffset) {
+        function updateCharts(dayOffset) {
             const start = dayOffset * 24; const end = start + 24;
             const labels = weatherData.hourly.time.slice(start, end).map(t => new Date(t).getHours() + "時");
             const temps = weatherData.hourly.temperature_2m.slice(start, end);
-            if (chart) chart.destroy();
-            const ctx = document.getElementById('tempChart').getContext('2d');
-            chart = new Chart(ctx, {
+            const precips = weatherData.hourly.precipitation.slice(start, end);
+            const winds = weatherData.hourly.wind_speed_10m.slice(start, end);
+
+            if (chartT) chartT.destroy();
+            if (chartP) chartP.destroy();
+            if (chartW) chartW.destroy();
+
+            const createConfig = (data, color, fill = true) => ({
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        data: temps, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        fill: true, tension: 0.4, pointRadius: 0
-                    }]
+                    datasets: [{ data: data, borderColor: color, backgroundColor: color + '22', fill: fill, tension: 0.4, pointRadius: 0 }]
                 },
                 options: {
-                    responsive: true,
+                    responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } } }
+                    scales: { y: { beginAtZero: false, grid: { display: false }, ticks: { font: { size: 8 } } }, x: { grid: { display: false }, ticks: { font: { size: 8, weight: 'bold' } } } }
                 }
             });
+
+            chartT = new Chart(document.getElementById('tempChart').getContext('2d'), createConfig(temps, '#f43f5e'));
+            chartP = new Chart(document.getElementById('precipChart').getContext('2d'), createConfig(precips, '#3b82f6'));
+            chartW = new Chart(document.getElementById('windChart').getContext('2d'), createConfig(winds, '#64748b'));
         }
     </script>
 </body>
