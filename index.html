@@ -4,67 +4,124 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Utility Hub | Portal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        /* フォントの読み込みを最小限に */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;900&family=Noto+Sans+JP:wght@700;900&display=swap');
+
+        :root {
+            --bg-start: #f8fafc;
+            --bg-end: #e2e8f0;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --text-mute: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: 'Inter', 'Noto Sans JP', sans-serif;
-            background: radial-gradient(circle at top left, #f8fafc, #e2e8f0);
-            min-h-screen: 100vh;
+            font-family: 'Inter', 'Noto Sans JP', -apple-system, sans-serif;
+            background: radial-gradient(circle at top left, var(--bg-start), var(--bg-end));
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--text-main);
         }
+
+        header { text-align: center; margin-bottom: 48px; }
+        h1 { font-size: 3rem; font-weight: 900; letter-spacing: -0.05em; margin-bottom: 8px; }
+        p { color: var(--text-sub); font-weight: 500; }
+
+        main {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        @media (min-width: 768px) {
+            main { grid-template-columns: repeat(3, 1fr); }
+        }
+
         .glass {
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 2rem;
+            padding: 32px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            transition: transform 0.2s ease, background 0.2s ease;
         }
-        .glass:hover {
-            background: rgba(255, 255, 255, 0.8);
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+
+        /* ホバーアニメーションをモバイルで重くならない程度に調整 */
+        @media (hover: hover) {
+            .glass:hover {
+                background: rgba(255, 255, 255, 0.8);
+                transform: translateY(-4px);
+            }
+            .glass:hover .tool-icon { transform: scale(1.1); }
+            .settings:hover .tool-icon { transform: rotate(45deg); }
         }
-        .tool-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
+
+        .tool-icon { font-size: 2.5rem; margin-bottom: 16px; transition: transform 0.2s ease; }
+        h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
+        .desc { font-size: 0.75rem; color: var(--text-mute); mt: 8px; }
+
+        .planned { opacity: 0.5; cursor: default; }
+        .badge {
+            font-size: 10px;
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 999px;
+            margin-top: 8px;
+            font-weight: 900;
+            text-transform: uppercase;
         }
+
+        footer { margin-top: 64px; color: var(--text-mute); font-size: 0.875rem; }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center p-6">
+<body>
 
-    <header class="text-center mb-12 animate-fade-in">
-        <h1 class="text-5xl font-black text-slate-800 tracking-tighter mb-2">Utility Hub</h1>
-        <p class="text-slate-500 font-medium">Simple, Fast, and Transparent Tools.</p>
+    <header>
+        <h1>Utility Hub</h1>
+        <p>Simple, Fast, and Transparent.</p>
     </header>
 
-    <main class="grid grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-4xl">
-        
-        <a href="/openmeteor/weather" class="glass rounded-[2rem] p-8 flex flex-col items-center text-center group">
-            <div class="tool-icon group-hover:scale-110 transition-transform">🌤️</div>
-            <h2 class="text-xl font-bold text-slate-800">Weather</h2>
-            <p class="text-xs text-slate-400 mt-2">14-Day Forecast</p>
+    <main>
+        <a href="/openmeteor/weather" class="glass">
+            <div class="tool-icon">🌤️</div>
+            <h2>Weather</h2>
+            <p class="desc">14-Day Forecast</p>
         </a>
 
-        <a href="/openmeteor/altitude" class="glass rounded-[2rem] p-8 flex flex-col items-center text-center group">
-            <div class="tool-icon group-hover:scale-110 transition-transform">🏔️</div>
-            <h2 class="text-xl font-bold text-slate-800">Altitude checker</h2>
-            <p class="text-xs text-slate-400 mt-2">Hyper altitude Checker is here</p>
+        <a href="/openmeteor/altitude" class="glass">
+            <div class="tool-icon">🏔️</div>
+            <h2>Altitude</h2>
+            <p class="desc">Hyper Checker</p>
         </a>
 
-        <div class="glass rounded-[2rem] p-8 flex flex-col items-center text-center opacity-60">
+        <div class="glass planned">
             <div class="tool-icon">📝</div>
-            <h2 class="text-xl font-bold text-slate-800">Text Format</h2>
-            <span class="text-[10px] bg-slate-200 px-2 py-0.5 rounded-full mt-2 uppercase font-bold">Planned</span>
+            <h2>Format</h2>
+            <span class="badge">Planned</span>
         </div>
 
-        <div class="glass rounded-[2rem] p-8 flex flex-col items-center text-center group cursor-pointer">
-            <div class="tool-icon group-hover:rotate-45 transition-transform">⚙️</div>
-            <h2 class="text-xl font-bold text-slate-800">Settings</h2>
-            <p class="text-xs text-slate-400 mt-2">Preferences</p>
+        <div class="glass settings" style="cursor: pointer;">
+            <div class="tool-icon">⚙️</div>
+            <h2>Settings</h2>
+            <p class="desc">Preferences</p>
         </div>
-
     </main>
 
-    <footer class="mt-16 text-slate-400 text-sm font-medium">
+    <footer>
         &copy; 2026 Utility Hub by Stelo.
     </footer>
 
