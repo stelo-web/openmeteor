@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Altitude Buddy | Del Hub</title>
+    <script src="https://cdn.tailwindcss.com" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    
+    <style>
+        /* 2. 重要なスタイルをインライン化して即座に表示 */
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: #0f172a; 
+            color: white; 
+            margin: 0; 
+            min-height: 100vh;
+        }
+        .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .bg-night { background: linear-gradient(135deg, #0f172a, #1e293b); }
+        #map { height: 180px; border-radius: 1.5rem; width: 100%; margin-top: 1rem; display: none; background: #1e293b; }
+        .show-map { display: block !important; }
+        
+        /* 3. フォント読み込み中のガタつき防止 */
+        @font-face { font-family: 'Inter'; font-display: swap; src: local('Arial'); }
+    </style>
+</head>
+<body class="bg-night p-4 pb-10">
+
+    <nav class="max-w-md mx-auto mb-6 flex items-center justify-between">
+        <a href="/stelo-web/delhub" class="glass px-5 py-2 rounded-full text-xs font-bold text-white/80">戻る</a>
+        <div id="local-time" class="text-[10px] font-bold text-white/60 tracking-wider">--:--:--</div>
+    </nav>
+
+    <main class="max-w-md mx-auto flex flex-col gap-4">
+        <div class="glass rounded-[3rem] p-8 flex flex-col items-center text-center relative">
+            <div id="gps-indicator" class="flex items-center gap-2 mb-4">
+                <div id="status-dot" class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span id="mode-text" class="text-[9px] font-black text-blue-400 uppercase tracking-widest">GPS Tracking</span>
+            </div>
+
+            <div class="mb-2">
+                <span id="alt-display" class="text-8xl font-black text-white tracking-tighter" style="text-shadow: 0 0 20px rgba(59,130,246,0.3);">0</span>
+                <span class="text-xl font-bold text-white/40">m</span>
+            </div>
+            
+            <div class="w-full bg-white/10 h-1.5 rounded-full mb-2 overflow-hidden">
+                <div id="oxygen-bar" class="h-full bg-blue-400 transition-all duration-1000" style="width: 100%"></div>
+            </div>
+            <p class="text-[9px] font-black text-white/30 uppercase tracking-widest">推定酸素濃度: <span id="oxygen-val" class="text-white">100</span>%</p>
+            
+            <div id="map"></div>
+            <button id="btn-toggle-map" class="mt-4 text-[10px] font-bold text-white/40 border border-white/10 px-4 py-2 rounded-full">地図で指定</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="glass rounded-[2rem] p-5 flex flex-col items-center text-center">
+                <span class="text-[8px] text-white/30 uppercase font-black mb-1">気圧 (hPa)</span>
+                <span id="pressure-val" class="text-2xl font-black">---</span>
+            </div>
+            <div class="glass rounded-[2rem] p-5 flex flex-col items-center text-center">
+                <span class="text-[8px] text-white/30 uppercase font-black mb-1">最高高度</span>
+                <span id="alt-max" class="text-2xl font-black text-blue-400">0</span>
+            </div>
+        </div>
+
+        <div class="glass rounded-[2rem] p-6 h-[280px] flex flex-col">
+            <p class="text-[10px] font-black text-white/40 mb-4 uppercase">高度履歴</p>
+            <div class="flex-grow"><canvas id="altChart"></canvas></div>
+        </div>
+    </main>
+
+    <script>
+        /* 4. ライブラリがロードされていなくてもエラーを吐かない工夫 */
+        let altHistory = JSON.parse(localStorage.getItem('alt_history') || '[]');
+        let maxAlt = parseInt(localStorage.getItem('alt_max') || '0');
+        let currentAlt = 0;
+        let displayAlt = 0;
+        let altChart;
+
+        // UI更新（軽量処理）
+        function updateUI() {
+            const now = new Date();
+            const timeEl = document.getElementById('local-time');
+            if(timeEl) timeEl.textContent = now.toLocaleTimeString('ja-JP');
+            
+            const h = now.getHours();
+            const colors = { dawn: 'linear-gradient(135deg, #f97316, #6366f1)', day: 'linear-gradient(135deg, #0ea5e9, #3b82f6)', dusk: 'linear-gradient(135deg, #4c1d95, #f43f5e)', night: 'linear-gradient(135deg, #0f172a, #1e293b)' };
+            document.body.style.background = h>=5&&h<8 ? colors.dawn : h>=8&&h<17 ? colors.day : h>=17&&h<20 ? colors.dusk : colors.night;
+        }
+
+        // 数値アニメーション
+        function animateValue() {
+            const diff = currentAlt - displayAlt;
+            if (Math.abs(diff) > 0.1) {
+                displayAlt += diff * 0.15;
+                document.getElementById('alt-display').textContent = Math.round(displayAlt);
+                requestAnimationFrame(animateValue);
+            }
+        }
+
+        // 高度更新
+        function updateAltitude(alt) {
+            if (alt === null) return;
+            currentAlt = alt;
+            animateValue();
+            const o2 = Math.exp(-alt / 8400) * 100;
+            document.getElementById('oxygen-val').textContent = o2.toFixed(1);
+            document.getElementById('oxygen-bar').style.width = o2 + '%';
+            
+            if (alt > maxAlt) {
+                maxAlt = Math.round(alt);
+                document.getElementById('alt-max').textContent = maxAlt;
+                localStorage.setItem('alt_max', maxAlt);
+            }
+            altHistory.push(Math.round(alt));
+            if (altHistory.length > 50) altHistory.shift(); // 履歴を絞ってメモリ節約
+            if (typeof Chart !== 'undefined' && altChart) {
+                altChart.update('none'); // アニメーションなしで更新
+            }
+        }
+
+        // チャートの遅延初期化
+        function initChart() {
+            if (typeof Chart === 'undefined') return setTimeout(initChart, 500);
+            const ctx = document.getElementById('altChart').getContext('2d');
+            altChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: altHistory.map((_,i)=>i), datasets: [{ data: altHistory, borderColor: '#3b82f6', borderWidth: 2, fill: true, backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.4, pointRadius: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.2)', font: { size: 8 } } }, x: { display: false } } }
+            });
+        }
+
+        window.addEventListener('load', () => {
+            updateUI();
+            setInterval(updateUI, 1000);
+            initChart();
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(pos => {
+                    if (pos.coords.altitude !== null) updateAltitude(pos.coords.altitude);
+                }, null, { enableHighAccuracy: true });
+            }
+        });
+    </script>
+</body>
+</html>
