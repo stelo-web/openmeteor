@@ -5,41 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Utility Hub | Portal</title>
     <style>
-        /* フォントの読み込みを最小限に */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;900&family=Noto+Sans+JP:wght@700;900&display=swap');
-
         :root {
-            --bg-start: #f8fafc;
-            --bg-end: #e2e8f0;
-            --text-main: #1e293b;
-            --text-sub: #64748b;
-            --text-mute: #94a3b8;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --sub: #64748b;
+            --accent: #3b82f6;
+            --glass: rgba(255, 255, 255, 0.6);
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', 'Noto Sans JP', -apple-system, sans-serif;
-            background: radial-gradient(circle at top left, var(--bg-start), var(--bg-end));
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: radial-gradient(circle at top left, #ffffff, #e2e8f0);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 24px;
-            color: var(--text-main);
+            color: var(--text);
+            overflow-x: hidden;
         }
 
-        header { text-align: center; margin-bottom: 48px; }
-        h1 { font-size: 3rem; font-weight: 900; letter-spacing: -0.05em; margin-bottom: 8px; }
-        p { color: var(--text-sub); font-weight: 500; }
+        header {
+            text-align: center;
+            margin-bottom: 48px;
+            animation: fadeIn 0.8s var(--ease) forwards;
+        }
+
+        h1 {
+            font-size: clamp(2.5rem, 8vw, 3.5rem);
+            font-weight: 900;
+            letter-spacing: -0.05em;
+            background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
         main {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
+            gap: 20px;
             width: 100%;
-            max-width: 900px;
+            max-width: 850px;
+            animation: fadeIn 1s var(--ease) 0.2s both;
         }
 
         @media (min-width: 768px) {
@@ -47,52 +63,72 @@
         }
 
         .glass {
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 2rem;
-            padding: 32px 16px;
+            border-radius: 2.5rem;
+            padding: 40px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             text-decoration: none;
-            transition: transform 0.2s ease, background 0.2s ease;
+            color: inherit;
+            position: relative;
+            transition: all 0.4s var(--ease);
+            will-change: transform, box-shadow; /* アニメーションの最適化 */
         }
 
-        /* ホバーアニメーションをモバイルで重くならない程度に調整 */
-        @media (hover: hover) {
-            .glass:hover {
-                background: rgba(255, 255, 255, 0.8);
-                transform: translateY(-4px);
-            }
-            .glass:hover .tool-icon { transform: scale(1.1); }
-            .settings:hover .tool-icon { transform: rotate(45deg); }
+        .glass:hover {
+            background: rgba(255, 255, 255, 0.85);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+            border-color: rgba(255, 255, 255, 0.7);
         }
 
-        .tool-icon { font-size: 2.5rem; margin-bottom: 16px; transition: transform 0.2s ease; }
-        h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
-        .desc { font-size: 0.75rem; color: var(--text-mute); mt: 8px; }
+        .tool-icon {
+            font-size: 2.8rem;
+            margin-bottom: 16px;
+            transition: transform 0.5s var(--ease);
+        }
 
-        .planned { opacity: 0.5; cursor: default; }
+        .glass:hover .tool-icon {
+            transform: scale(1.15) rotate(5deg);
+        }
+
+        .settings:hover .tool-icon {
+            transform: rotate(90deg);
+        }
+
+        h2 { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
+        .desc { font-size: 0.75rem; color: var(--sub); margin-top: 6px; font-weight: 500; }
+
+        .planned { opacity: 0.6; grayscale: 1; }
         .badge {
-            font-size: 10px;
+            font-size: 9px;
             background: #e2e8f0;
-            padding: 2px 8px;
-            border-radius: 999px;
-            margin-top: 8px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-top: 10px;
             font-weight: 900;
-            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
-        footer { margin-top: 64px; color: var(--text-mute); font-size: 0.875rem; }
+        footer {
+            margin-top: 60px;
+            color: var(--sub);
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
 
     <header>
         <h1>Utility Hub</h1>
-        <p>Simple, Fast, and Transparent.</p>
+        <p>Simple, Fast, and Transparent Tools.</p>
     </header>
 
     <main>
@@ -110,8 +146,8 @@
 
         <div class="glass planned">
             <div class="tool-icon">📝</div>
-            <h2>Format</h2>
-            <span class="badge">Planned</span>
+            <h2>Text Format</h2>
+            <span class="badge">PLANNED</span>
         </div>
 
         <div class="glass settings" style="cursor: pointer;">
